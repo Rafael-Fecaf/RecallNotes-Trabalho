@@ -1,0 +1,28 @@
+{
+  "name": "recallnotes",
+  "version": "0.1.0-alpha.1",
+  "description": "Aplicativo de notas rápidas com lembretes",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["notas", "lembretes", "electron", "markdown"],
+  "author": "Rafael Carlos Lima",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seu-usuario/recallnotes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seu-usuario/recallnotes/issues"
+  },
+  "homepage": "https://github.com/seu-usuario/recallnotes#readme",
+  "devDependencies": {
+    "electron": "^x.x.x"
+  },
+  "dependencies": {
+    "knex": "^3.1.0",
+    "sqlite3": "^5.1.7"
+  }
+}

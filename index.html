@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RecallNotes - Editor Markdown</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;" />
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #format-bar {
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+            display: none;
+        }
+        #format-bar button {
+            margin: 0 2px;
+            padding: 2px 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #format-bar button:hover {
+            background-color: #e0e0e0;
+        }
+        #content {
+            display: flex;
+            flex-grow: 1;
+        }
+        #editor, #preview {
+            flex: 1;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: none;
+            border: none;
+            outline: none;
+            overflow-y: auto;
+        }
+        #preview {
+            background-color: #f9f9f9;
+            border-left: 1px solid #ccc;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+</head>
+<body>
+    <div id="format-bar">
+        <button onclick="formatText('**', '**')">B</button>
+        <button onclick="formatText('*', '*')">I</button>
+        <button onclick="formatText('# ')">H1</button>
+        <button onclick="formatText('## ')">H2</button>
+        <button onclick="formatText('- ')">List</button>
+        <button onclick="formatText('[', '](url)')">Link</button>
+    </div>
+    <div id="content">
+        <textarea id="editor"></textarea>
+        <div id="preview"></div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron')
+        const editor = document.getElementById('editor')
+        const preview = document.getElementById('preview')
+        const formatBar = document.getElementById('format-bar')
+
+        let currentFilePath = null
+
+        function newFile() {
+            currentFilePath = null
+            editor.value = ''
+            updatePreview()
+            updateTitle()
+        }
+
+        function openFile() {
+            ipcRenderer.invoke('open-file').then(result => {
+                if (result.filePath) {
+                    currentFilePath = result.filePath
+                    editor.value = result.content
+                    updatePreview()
+                    updateTitle()
+                }
+            })
+        }
+
+        function saveFile() {
+            if (currentFilePath) {
+                ipcRenderer.invoke('save-file', currentFilePath, editor.value)
+            } else {
+                saveFileAs()
+            }
+        }
+
+        function saveFileAs() {
+            ipcRenderer.invoke('save-file-as', editor.value).then(filePath => {
+                if (filePath) {
+                    currentFilePath = filePath
+                    updateTitle()
+                }
+            })
+        }
+
+        function updateTitle() {
+            const fileName = currentFilePath ? currentFilePath.split('/').pop() : 'Sem título.md'
+            document.title = `${fileName} - RecallNotes`
+        }
+
+        function formatText(openTag, closeTag = '') {
+            const start = editor.selectionStart
+            const end = editor.selectionEnd
+            const fullText = editor.value
+            const selectedText = fullText.substring(start, end)
+            let replacement = ''
+
+            if (openTag === '# ' || openTag === '## ') {
+                const lineStart = fullText.lastIndexOf('\n', start) + 1
+                const lineEnd = fullText.indexOf('\n', end)
+                const currentLine = fullText.substring(lineStart, lineEnd !== -1 ? lineEnd : fullText.length)
+                const indentation = currentLine.match(/^\s*/)[0]
+                
+                replacement = fullText.substring(0, lineStart) +
+                              indentation + openTag + currentLine.trim() + '\n' +
+                              (lineEnd !== -1 ? fullText.substring(lineEnd + 1) : '')
+            } else {
+                replacement = fullText.substring(0, start) + openTag + selectedText + closeTag + fullText.substring(end)
+            }
+
+            editor.value = replacement
+            editor.focus()
+            updatePreview()
+
+            if (openTag === '# ' || openTag === '## ') {
+                const newLineStart = fullText.lastIndexOf('\n', start) + 1
+                const newStart = newLineStart + openTag.length
+                editor.setSelectionRange(newStart, newStart)
+            } else {
+                editor.setSelectionRange(start + openTag.length, end + openTag.length)
+            }
+        }
+
+        function toggleFormatBar() {
+            const selection = editor.value.substring(editor.selectionStart, editor.selectionEnd)
+            formatBar.style.display = selection.length > 0 ? 'block' : 'none'
+        }
+
+        function updatePreview() {
+            preview.innerHTML = marked(editor.value)
+        }
+
+        editor.addEventListener('input', updatePreview)
+        editor.addEventListener('mouseup', toggleFormatBar)
+        editor.addEventListener('keyup', toggleFormatBar)
+
+        ipcRenderer.on('new-file', newFile)
+        ipcRenderer.on('open-file', openFile)
+        ipcRenderer.on('save-file', saveFile)
+        ipcRenderer.on('save-file-as', saveFileAs)
+
+        updateTitle()
+        updatePreview()
+    </script>
+</body>
+</html>
